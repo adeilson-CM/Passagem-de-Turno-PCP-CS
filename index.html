@@ -887,7 +887,11 @@ async function gasCall(payload){
     body: JSON.stringify(payload)
   });
   if(!res.ok) throw new Error('http-'+res.status);
-  return res.json();
+  const data = await res.json();
+  if(!data || data.ok !== true){
+    throw new Error((data && data.error) ? data.error : 'o servidor não confirmou a gravação');
+  }
+  return data;
 }
 
 async function gasFetchAll(){
@@ -928,7 +932,7 @@ async function syncNow(showToast){
     if(showToast) toast('Sincronizado com sucesso.');
   }catch(e){
     console.warn(e);
-    setSyncStatus('err', 'falha na sincronização');
+    setSyncStatus('err', 'falha na sincronização: '+e.message);
     if(showToast) toast('Não foi possível sincronizar. Verifique a URL/rede.');
   }
 }
@@ -940,7 +944,8 @@ async function pushTask(task){
     await gasCall({action:'upsert_task', task});
     setSyncStatus('ok','sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
   }catch(e){
-    setSyncStatus('err','alteração salva local, falha ao enviar');
+    console.error('Falha ao enviar tarefa:', e);
+    setSyncStatus('err','falha ao enviar: '+e.message);
   }
 }
 async function pushNota(nota){
@@ -950,7 +955,8 @@ async function pushNota(nota){
     await gasCall({action:'upsert_nota', nota});
     setSyncStatus('ok','sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
   }catch(e){
-    setSyncStatus('err','alteração salva local, falha ao enviar');
+    console.error('Falha ao enviar nota:', e);
+    setSyncStatus('err','falha ao enviar: '+e.message);
   }
 }
 
