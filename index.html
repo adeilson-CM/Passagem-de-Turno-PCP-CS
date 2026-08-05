@@ -1366,6 +1366,13 @@ function init(){
   renderAll();
   if(state.config.gasUrl){ syncNow(false); }
   else{ setSyncStatus('', 'não configurado — clique em "Sincronização"'); }
+
+  // Auto-sync em segundo plano, mesmo fora do Modo TV
+  setInterval(()=>{ syncNow(false); }, 15000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible') syncNow(false);
+  });
+  window.addEventListener('focus', ()=> syncNow(false));
 }
 document.addEventListener('DOMContentLoaded', init);
 })();
