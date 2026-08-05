@@ -190,7 +190,7 @@ table.hist-table tr:last-child td{border-bottom:none;}
 <!-- =============== TOOLBAR =============== -->
 <div class="toolbar">
   <div class="field-inline">
-    <label>Supervisor</label>
+    <label>Preenchido por</label>
     <input type="text" id="selSupervisor" list="dlSupervisores" placeholder="Digite ou escolha...">
     <datalist id="dlSupervisores"></datalist>
   </div>
@@ -353,7 +353,7 @@ table.hist-table tr:last-child td{border-bottom:none;}
       </div>
       <p style="font-size:12px;color:var(--muted);line-height:1.5;">
         Cole aqui a URL gerada ao publicar o script (Code.gs) como Web App.
-        Todos os supervisores devem usar a mesma URL para compartilhar os dados entre os PCs.
+        Todos que preenchem devem usar a mesma URL para compartilhar os dados entre os PCs.
       </p>
     </div>
     <div class="modal-foot">
@@ -807,7 +807,7 @@ const CATEGORIAS = ['Risco de entrega','Estampado Crítico','MP Crítica','Embal
 const STORAGE_KEY = 'passagem_turno_pcp_cs_v1';
 
 let state = {
-  config: { gasUrl:'' },
+  config: { gasUrl:'https://script.google.com/macros/s/AKfycbxxvYK384UsNC8kojrUgt795eRFx-97_pe6vO4gUaJWwz4fFYmuM2EjYt1Mdg09742LtA/exec' },
   supervisorAtual: '',
   turnoAtual: '1º Turno',
   sugestoes: {
@@ -982,7 +982,7 @@ function openNovaTarefaModal(pessoa, aba){
 function confirmarNovaTarefa(){
   const descricao = document.getElementById('mtDescricao').value.trim();
   if(!descricao){ toast('Descreva a tarefa antes de abrir.'); return; }
-  if(!state.supervisorAtual){ toast('Selecione ou digite o supervisor no topo da tela.'); return; }
+  if(!state.supervisorAtual){ toast('Preencha "Preenchido por" no topo da tela.'); return; }
   const prazoLocal = document.getElementById('mtPrazo').value; // "YYYY-MM-DDTHH:mm"
   const task = {
     id: uid(),
