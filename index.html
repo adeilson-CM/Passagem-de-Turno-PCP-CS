@@ -894,8 +894,7 @@ async function gasFetchAll(){
   if(!state.config.gasUrl) throw new Error('sem-url');
   const bust = Date.now() + '-' + Math.random().toString(16).slice(2);
   const res = await fetch(state.config.gasUrl + '?action=getAll&_=' + bust, {
-    cache: 'no-store',
-    headers: { 'Cache-Control': 'no-cache' }
+    cache: 'no-store'
   });
   if(!res.ok) throw new Error('http-'+res.status);
   return res.json();
