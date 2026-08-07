@@ -1033,11 +1033,17 @@ function setSyncStatus(mode, text){
 
 async function gasCall(payload){
   if(!state.config.gasUrl){ throw new Error('sem-url'); }
-  const res = await fetch(state.config.gasUrl, {
-    method:'POST',
-    cache:'no-store',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(payload)
+  const bust = Date.now() + '-' + Math.random().toString(16).slice(2);
+  const params = new URLSearchParams();
+  params.set('action', payload.action);
+  params.set('_', bust);
+  if(payload.action === 'upsert_task') params.set('payload', JSON.stringify(payload.task));
+  else if(payload.action === 'upsert_nota') params.set('payload', JSON.stringify(payload.nota));
+  else if(payload.action === 'delete_task') params.set('id', payload.id);
+
+  const res = await fetch(state.config.gasUrl + '?' + params.toString(), {
+    method:'GET',
+    cache:'no-store'
   });
   if(!res.ok) throw new Error('http-'+res.status);
   const data = await res.json();
