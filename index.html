@@ -1040,6 +1040,7 @@ async function gasCall(payload){
   if(payload.action === 'upsert_task') params.set('payload', JSON.stringify(payload.task));
   else if(payload.action === 'upsert_nota') params.set('payload', JSON.stringify(payload.nota));
   else if(payload.action === 'delete_task') params.set('id', payload.id);
+  else if(payload.action === 'upsert_config'){ params.set('chave', payload.chave); params.set('valor', JSON.stringify(payload.valor)); }
 
   const res = await fetch(state.config.gasUrl + '?' + params.toString(), {
     method:'GET',
@@ -1075,6 +1076,13 @@ function mergeById(localArr, remoteArr, idField){
   return Array.from(map.values());
 }
 
+function unionListas(local, remote){
+  const map = new Map();
+  (local||[]).forEach(v=>map.set(v.toLowerCase(), v));
+  (remote||[]).forEach(v=>{ if(!map.has(v.toLowerCase())) map.set(v.toLowerCase(), v); });
+  return Array.from(map.values());
+}
+
 async function syncNow(showToast){
   if(!state.config.gasUrl){
     setSyncStatus('', 'não configurado');
@@ -1085,6 +1093,14 @@ async function syncNow(showToast){
     const remote = await gasFetchAll();
     state.tasks = mergeById(state.tasks, remote.tasks||[], 'id');
     state.notas = mergeById(state.notas, remote.notas||[], 'data');
+    if(remote.config){
+      state.pessoas = unionListas(state.pessoas, remote.config.pessoas);
+      state.categorias = unionListas(state.categorias, remote.config.categorias);
+      state.sugestoes.turnos = unionListas(state.sugestoes.turnos, remote.config.turnos);
+      state.sugestoes.supervisores = unionListas(state.sugestoes.supervisores, remote.config.supervisores);
+      renderCategoriaOptions();
+      renderDatalists();
+    }
     saveLocal();
     renderAll();
     setSyncStatus('ok', 'sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
@@ -1115,6 +1131,18 @@ async function pushNota(nota){
     setSyncStatus('ok','sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
   }catch(e){
     console.error('Falha ao enviar nota:', e);
+    setSyncStatus('err','falha ao enviar: '+e.message);
+  }
+}
+
+async function pushConfig(chave, valor){
+  saveLocal();
+  if(!state.config.gasUrl) return;
+  try{
+    await gasCall({action:'upsert_config', chave, valor});
+    setSyncStatus('ok','sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){
+    console.error('Falha ao enviar config ('+chave+'):', e);
     setSyncStatus('err','falha ao enviar: '+e.message);
   }
 }
@@ -1242,6 +1270,7 @@ function addSugestao(tipo, valor){
     lista.push(valor);
     saveLocal();
     renderDatalists();
+    pushConfig(tipo, lista);
   }
 }
 function renderDatalists(){
@@ -1279,6 +1308,7 @@ function addNovaCategoria(selectEl, previousValue){
   if(!state.categorias.some(c=>c.toLowerCase()===nomeTrim.toLowerCase())){
     state.categorias.push(nomeTrim);
     saveLocal();
+    pushConfig('categorias', state.categorias);
   }
   renderCategoriaOptions();
   document.getElementById('edCategoria') && (function(){
@@ -1299,6 +1329,7 @@ function addNovaPessoa(){
   state.pessoas.push(nomeTrim);
   saveLocal();
   renderAll();
+  pushConfig('pessoas', state.pessoas);
   toast('"'+nomeTrim+'" incluído(a) no quadro.');
 }
 
