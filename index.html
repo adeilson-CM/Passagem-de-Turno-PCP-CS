@@ -92,6 +92,9 @@ input,select,textarea{font-family:inherit;}
 .people-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:14px;}
 .person-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;}
 .person-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);}
+.remove-person-btn{border:none;background:transparent;color:var(--border);font-size:13px;line-height:1;padding:2px 4px;border-radius:5px;cursor:pointer;opacity:0;transition:.15s;}
+.person-card:hover .remove-person-btn{opacity:1;color:var(--muted);}
+.remove-person-btn:hover{background:var(--danger-bg);color:var(--danger)!important;}
 .person-name{font-size:14.5px;font-weight:700;}
 .person-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#eef1f5;color:var(--muted);}
 .person-badge.has-open{background:var(--warning-bg);color:var(--warning);}
@@ -130,6 +133,11 @@ table.hist-table tr:last-child td{border-bottom:none;}
 .modal-body{padding:18px 20px;display:flex;flex-direction:column;gap:13px;max-height:65vh;overflow-y:auto;}
 .form-row label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;}
 .form-row select,.form-row textarea,.form-row input{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13.5px;color:var(--text);}
+.distribuicao-box{border:1px solid var(--border);border-radius:8px;padding:8px 10px;max-height:130px;overflow-y:auto;background:#fafbfc;}
+.distribuicao-box label{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:13px;font-weight:400;text-transform:none;color:var(--text);cursor:pointer;}
+.distribuicao-box label:hover{background:var(--gestamp-blue-light);border-radius:5px;}
+.distribuicao-box input[type=checkbox]{width:auto;margin:0;accent-color:var(--gestamp-blue);}
+.distribuicao-box .empty-hint{padding:4px 2px;}
 .form-row textarea{min-height:80px;resize:vertical;}
 .modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;}
 
@@ -332,6 +340,10 @@ table.hist-table tr:last-child td{border-bottom:none;}
         <input type="datetime-local" id="mtPrazo">
       </div>
       <div class="form-row">
+        <label>Distribuição <span style="text-transform:none;font-weight:400;color:var(--muted);">(quem mais deve acompanhar)</span></label>
+        <div id="mtDistribuicao" class="distribuicao-box"></div>
+      </div>
+      <div class="form-row">
         <label>Preenchido por</label>
         <input type="text" id="mtAbertoPor" list="dlSupervisores" placeholder="Digite seu nome...">
       </div>
@@ -410,6 +422,10 @@ table.hist-table tr:last-child td{border-bottom:none;}
       <div class="form-row">
         <label>Prazo para fechar</label>
         <input type="datetime-local" id="edPrazo">
+      </div>
+      <div class="form-row">
+        <label>Distribuição <span style="text-transform:none;font-weight:400;color:var(--muted);">(quem mais deve acompanhar)</span></label>
+        <div id="edDistribuicao" class="distribuicao-box"></div>
       </div>
       <div class="form-row">
         <label>Status</label>
@@ -944,6 +960,7 @@ const STORAGE_KEY = 'passagem_turno_pcp_cs_v1';
 let state = {
   config: { gasUrl:'https://script.google.com/macros/s/AKfycby9RAaXgGXmF-alEUO46QtBgW8dUakAgSDXNSjhBVLMJCkmN8J9JNCbRSToesxsj4CUbw/exec' },
   ultimoPreenchidoPor: '',
+  rascunhoNota: { data: '', texto: '' },
   turnoAtual: '1º Turno',
   pessoas: BASE_PESSOAS.slice(),
   categorias: BASE_CATEGORIAS.slice(),
@@ -1094,7 +1111,12 @@ async function syncNow(showToast){
     state.tasks = mergeById(state.tasks, remote.tasks||[], 'id');
     state.notas = mergeById(state.notas, remote.notas||[], 'data');
     if(remote.config){
-      state.pessoas = unionListas(state.pessoas, remote.config.pessoas);
+      // Pessoas agora pode ser removida, então a lista do servidor é a fonte da
+      // verdade (substitui a local) sempre que já existir algo publicado —
+      // assim uma exclusão feita em outro PC também chega até aqui.
+      if(remote.config.pessoas && remote.config.pessoas.length) state.pessoas = remote.config.pessoas;
+      // Categorias, turnos e supervisores ainda são só de adicionar, então
+      // continuam somando (união) pra nunca perder uma inclusão feita em outro PC.
       state.categorias = unionListas(state.categorias, remote.config.categorias);
       state.sugestoes.turnos = unionListas(state.sugestoes.turnos, remote.config.turnos);
       state.sugestoes.supervisores = unionListas(state.sugestoes.supervisores, remote.config.supervisores);
@@ -1172,6 +1194,23 @@ function tasksInRange(aba, fromStr, toStr, search, statusFiltro){
 
 let pendingPessoa=null, pendingAba=null, pendingTaskId=null;
 
+function renderDistribuicaoBox(containerId, pessoaExcluir, selecionados){
+  const el = document.getElementById(containerId);
+  const opcoes = state.pessoas.filter(p=>p!==pessoaExcluir);
+  if(!opcoes.length){
+    el.innerHTML = `<div class="empty-hint">Nenhuma outra pessoa cadastrada.</div>`;
+    return;
+  }
+  const selSet = new Set((selecionados||[]).map(s=>s.toLowerCase()));
+  el.innerHTML = opcoes.map(p=>{
+    const checked = selSet.has(p.toLowerCase()) ? 'checked' : '';
+    return `<label><input type="checkbox" value="${escapeHtml(p)}" ${checked}> ${escapeHtml(p)}</label>`;
+  }).join('');
+}
+function getDistribuicaoSelecionada(containerId){
+  return Array.from(document.querySelectorAll('#'+containerId+' input[type=checkbox]:checked')).map(el=>el.value);
+}
+
 function openNovaTarefaModal(pessoa, aba){
   pendingPessoa = pessoa; pendingAba = aba;
   document.getElementById('mtTitle').textContent = 'Nova tarefa — ' + pessoa;
@@ -1182,6 +1221,7 @@ function openNovaTarefaModal(pessoa, aba){
   document.getElementById('mtTurno').value = state.turnoAtual;
   document.getElementById('mtAbertoPor').value = state.ultimoPreenchidoPor;
   document.getElementById('mtCategoriaRow').style.display = (aba==='diaria') ? 'block':'none';
+  renderDistribuicaoBox('mtDistribuicao', pessoa, []);
   showModal('modalTarefa');
 }
 
@@ -1193,6 +1233,7 @@ function confirmarNovaTarefa(){
   state.ultimoPreenchidoPor = abertoPor;
   addSugestao('supervisores', abertoPor);
   const prazoLocal = document.getElementById('mtPrazo').value; // "YYYY-MM-DDTHH:mm"
+  const distribuicao = getDistribuicaoSelecionada('mtDistribuicao').join(', ');
   const task = {
     id: uid(),
     aba: pendingAba,
@@ -1203,6 +1244,7 @@ function confirmarNovaTarefa(){
     aberto_por: abertoPor,
     data_abertura: nowIso(),
     prazo_fechamento: prazoLocal ? new Date(prazoLocal).toISOString() : null,
+    distribuicao: distribuicao || null,
     status: 'aberta',
     turno_fechamento: null,
     fechado_por: null,
@@ -1221,10 +1263,11 @@ function openFecharModal(taskId){
   const t = state.tasks.find(x=>x.id===taskId);
   if(!t) return;
   const prazoHtml = t.prazo_fechamento ? ('<br><span style="color:var(--muted)">Prazo: '+prazoLabel(t)+'</span>') : '';
+  const distHtml = t.distribuicao ? ('<br><span style="color:var(--muted)">👥 Distribuição: '+escapeHtml(t.distribuicao)+'</span>') : '';
   document.getElementById('mfResumo').innerHTML =
     '<strong>'+escapeHtml(t.pessoa)+'</strong>'+(t.categoria && t.aba==='diaria' ? ' · '+escapeHtml(t.categoria):'')+
     '<br>'+escapeHtml(t.descricao)+
-    '<br><span style="color:var(--muted)">Aberta em '+fmtDateTime(t.data_abertura)+' por '+escapeHtml(t.aberto_por)+' ('+escapeHtml(t.turno_abertura)+')</span>'+prazoHtml;
+    '<br><span style="color:var(--muted)">Aberta em '+fmtDateTime(t.data_abertura)+' por '+escapeHtml(t.aberto_por)+' ('+escapeHtml(t.turno_abertura)+')</span>'+prazoHtml+distHtml;
   document.getElementById('mfObs').value = '';
   document.getElementById('mfFechadoPor').value = state.ultimoPreenchidoPor;
   document.getElementById('mfTurno').value = state.turnoAtual;
@@ -1333,6 +1376,20 @@ function addNovaPessoa(){
   toast('"'+nomeTrim+'" incluído(a) no quadro.');
 }
 
+function removerPessoa(pessoa){
+  const tarefasAbertas = state.tasks.filter(t=>t.pessoa===pessoa && t.status==='aberta');
+  if(tarefasAbertas.length){
+    toast('Feche as tarefas abertas de "'+pessoa+'" antes de excluir.');
+    return;
+  }
+  if(!confirm('Excluir "'+pessoa+'" do quadro? O histórico dela é mantido, só o cartão sai da tela.')) return;
+  state.pessoas = state.pessoas.filter(p=>p!==pessoa);
+  saveLocal();
+  renderAll();
+  pushConfig('pessoas', state.pessoas);
+  toast('"'+pessoa+'" removido(a) do quadro.');
+}
+
 function personCardHtml(pessoa, aba){
   const open = openTasksFor(pessoa, aba);
   const badgeClass = open.length===0 ? '' : (open.some(t=>isOverdue(t)) ? 'critical' : 'has-open');
@@ -1340,18 +1397,23 @@ function personCardHtml(pessoa, aba){
     ? open.map(t=>{
         const aging = isOverdue(t);
         const prazoLine = t.prazo_fechamento ? `<div class="tc-meta"><span>Prazo</span>${prazoLabel(t)}</div>` : '';
+        const distLine = t.distribuicao ? `<div class="tc-meta" style="margin-top:3px;"><span>👥 ${escapeHtml(t.distribuicao)}</span></div>` : '';
         return `<div class="task-chip ${aging?'aging':''}" onclick="PT.openFechar('${t.id}')">
           ${aba==='diaria' ? `<div class="tc-cat">${escapeHtml(t.categoria)}</div>` : ''}
           <div class="tc-desc">${escapeHtml(t.descricao)}</div>
           <div class="tc-meta"><span>${escapeHtml(t.turno_abertura)} · ${escapeHtml(t.aberto_por)}</span><span>${fmtDateTime(t.data_abertura).split(' ')[1]||''}</span></div>
           ${prazoLine}
+          ${distLine}
         </div>`;
       }).join('')
     : `<div class="empty-hint">Nenhuma tarefa aberta.</div>`;
   return `<div class="person-card">
     <div class="person-head">
       <span class="person-name">${escapeHtml(pessoa)}</span>
-      <span class="person-badge ${badgeClass}">${open.length} aberta${open.length===1?'':'s'}</span>
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span class="person-badge ${badgeClass}">${open.length} aberta${open.length===1?'':'s'}</span>
+        <button class="remove-person-btn" title="Excluir pessoa" onclick="PT.removerPessoa('${escapeHtml(pessoa)}')">✕</button>
+      </span>
     </div>
     <div class="task-list">${chips}</div>
     <div class="person-foot">
@@ -1388,7 +1450,7 @@ function renderHistory(aba){
       return `<tr>
         <td>${escapeHtml(t.pessoa)}</td>
         <td>${escapeHtml(t.categoria)}</td>
-        <td>${escapeHtml(t.descricao)}${t.observacao_fechamento?`<br><span style="color:var(--muted);font-size:11.5px;">Obs: ${escapeHtml(t.observacao_fechamento)}</span>`:''}</td>
+        <td>${escapeHtml(t.descricao)}${t.distribuicao?`<br><span style="color:var(--muted);font-size:11.5px;">👥 ${escapeHtml(t.distribuicao)}</span>`:''}${t.observacao_fechamento?`<br><span style="color:var(--muted);font-size:11.5px;">Obs: ${escapeHtml(t.observacao_fechamento)}</span>`:''}</td>
         <td>${fmtDateTime(t.data_abertura)}<br><span style="color:var(--muted);font-size:11px;">${escapeHtml(t.turno_abertura)} · ${escapeHtml(t.aberto_por)}</span></td>
         <td>${prazoCell}</td>
         <td>${t.data_fechamento ? fmtDateTime(t.data_fechamento)+`<br><span style="color:var(--muted);font-size:11px;">${escapeHtml(t.turno_fechamento||'')} · ${escapeHtml(t.fechado_por||'')}</span>` : '—'}</td>
@@ -1398,7 +1460,7 @@ function renderHistory(aba){
     }else{
       return `<tr>
         <td>${escapeHtml(t.pessoa)}</td>
-        <td>${escapeHtml(t.descricao)}${t.observacao_fechamento?`<br><span style="color:var(--muted);font-size:11.5px;">Obs: ${escapeHtml(t.observacao_fechamento)}</span>`:''}</td>
+        <td>${escapeHtml(t.descricao)}${t.distribuicao?`<br><span style="color:var(--muted);font-size:11.5px;">👥 ${escapeHtml(t.distribuicao)}</span>`:''}${t.observacao_fechamento?`<br><span style="color:var(--muted);font-size:11.5px;">Obs: ${escapeHtml(t.observacao_fechamento)}</span>`:''}</td>
         <td>${fmtDateTime(t.data_abertura)}</td>
         <td>${prazoCell}</td>
         <td>${t.data_fechamento ? fmtDateTime(t.data_fechamento) : '—'}</td>
@@ -1414,7 +1476,12 @@ function renderNota(){
   if(!notaDataInput.value) notaDataInput.value = todayStr();
   const dataSelecionada = notaDataInput.value;
   const n = state.notas.find(x=>x.data===dataSelecionada);
-  document.getElementById('notaTexto').value = n ? n.texto : '';
+  const notaTextoEl = document.getElementById('notaTexto');
+  const usuarioEstaDigitando = document.activeElement === notaTextoEl;
+  if(!usuarioEstaDigitando){
+    const temRascunho = state.rascunhoNota && state.rascunhoNota.data === dataSelecionada && state.rascunhoNota.texto;
+    notaTextoEl.value = temRascunho ? state.rascunhoNota.texto : (n ? n.texto : '');
+  }
   document.getElementById('notaMeta').textContent = n ? ('salvo por '+n.atualizado_por+' às '+fmtDateTime(n.updated_at)) : (dataSelecionada===todayStr() ? 'ainda não salvo hoje' : 'nenhuma nota registrada nessa data');
   const preenchidoInput = document.getElementById('notaPreenchidoPor');
   if(!preenchidoInput.value) preenchidoInput.value = state.ultimoPreenchidoPor || '';
@@ -1461,6 +1528,8 @@ function openEditModal(taskId){
   document.getElementById('edTurnoAbertura').value = t.turno_abertura || '';
   document.getElementById('edAbertoPor').value = t.aberto_por || '';
   document.getElementById('edPrazo').value = isoToLocalInput(t.prazo_fechamento);
+  const distAtual = t.distribuicao ? t.distribuicao.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  renderDistribuicaoBox('edDistribuicao', t.pessoa, distAtual);
   document.getElementById('edStatus').value = t.status;
   document.getElementById('edDataFechamento').value = isoToLocalInput(t.data_fechamento);
   document.getElementById('edTurnoFechamento').value = t.turno_fechamento || '';
@@ -1496,6 +1565,7 @@ function salvarEdicao(){
   t.aberto_por = abertoPor;
   const prazoLocal = document.getElementById('edPrazo').value;
   t.prazo_fechamento = prazoLocal ? new Date(prazoLocal).toISOString() : null;
+  t.distribuicao = getDistribuicaoSelecionada('edDistribuicao').join(', ') || null;
   t.status = status;
 
   if(status==='fechada'){
@@ -1655,11 +1725,12 @@ function renderTvPersonDetail(){
     items.map(t=>{
       const aging = isOverdue(t);
       const prazoTxt = t.prazo_fechamento ? (' · Prazo: '+fmtDateTime(t.prazo_fechamento)) : '';
+      const distTxt = t.distribuicao ? (' · 👥 '+escapeHtml(t.distribuicao)) : '';
       const catLabel = t.aba==='diaria' ? escapeHtml(t.categoria) : 'Acompanhamento FDS';
       return `<div class="tv-detail-item ${aging?'aging':''}">
         <div class="tdi-cat">${catLabel}</div>
         <div>${escapeHtml(t.descricao)}</div>
-        <div class="tdi-meta">${escapeHtml(t.turno_abertura)} · ${escapeHtml(t.aberto_por)} · aberta em ${fmtDateTime(t.data_abertura)}${prazoTxt}</div>
+        <div class="tdi-meta">${escapeHtml(t.turno_abertura)} · ${escapeHtml(t.aberto_por)} · aberta em ${fmtDateTime(t.data_abertura)}${prazoTxt}${distTxt}</div>
       </div>`;
     }).join('');
 }
@@ -1725,7 +1796,7 @@ function gerarPdfDoDia(){
   y += 6 + notaLines.length*4.2 + 6;
 
   const rowsDiaria = tasksInRange('diaria', dateStr, dateStr, '').map(t=>[
-    t.pessoa, t.categoria, t.descricao,
+    t.pessoa, t.categoria, t.descricao + (t.distribuicao ? ('\nDistribuição: '+t.distribuicao) : ''),
     t.turno_abertura+' · '+t.aberto_por,
     t.prazo_fechamento ? fmtDateTime(t.prazo_fechamento) : '—',
     t.status==='fechada' ? (t.turno_fechamento+' · '+t.fechado_por) : '—',
@@ -1749,7 +1820,7 @@ function gerarPdfDoDia(){
     doc.autoTable({
       startY: y2+4,
       head:[['Pessoa','Descrição','Abertura','Prazo','Fechamento','Status']],
-      body: rowsFds.map(t=>[t.pessoa,t.descricao,fmtDateTime(t.data_abertura),t.prazo_fechamento?fmtDateTime(t.prazo_fechamento):'—',t.data_fechamento?fmtDateTime(t.data_fechamento):'—', t.status==='aberta'?'ABERTA':('FECHADA (por '+(t.fechado_por||'?')+')')]),
+      body: rowsFds.map(t=>[t.pessoa,t.descricao + (t.distribuicao ? ('\nDistribuição: '+t.distribuicao) : ''),fmtDateTime(t.data_abertura),t.prazo_fechamento?fmtDateTime(t.prazo_fechamento):'—',t.data_fechamento?fmtDateTime(t.data_fechamento):'—', t.status==='aberta'?'ABERTA':('FECHADA (por '+(t.fechado_por||'?')+')')]),
       styles:{fontSize:8, cellPadding:2.2},
       headStyles:{fillColor:[0,48,135], textColor:255},
       theme:'grid'
@@ -1821,6 +1892,10 @@ function bindEvents(){
   document.getElementById('btnSalvarEdicao').addEventListener('click', salvarEdicao);
   document.getElementById('btnExcluirEdicao').addEventListener('click', excluirEdicao);
   document.getElementById('edStatus').addEventListener('change', toggleEdFechamentoBlock);
+  document.getElementById('edPessoa').addEventListener('change', e=>{
+    const atuais = getDistribuicaoSelecionada('edDistribuicao');
+    renderDistribuicaoBox('edDistribuicao', e.target.value, atuais);
+  });
 
   document.getElementById('btnSalvarNota').addEventListener('click', ()=>{
     const texto = document.getElementById('notaTexto').value.trim();
@@ -1834,10 +1909,16 @@ function bindEvents(){
     n.texto = texto;
     n.atualizado_por = preenchidoPor;
     n.updated_at = nowIso();
+    state.rascunhoNota = { data: '', texto: '' };
     pushNota(n);
     toast('Nota da reunião salva ('+new Date(dataNota+'T00:00:00').toLocaleDateString('pt-BR')+').');
   });
   document.getElementById('notaData').addEventListener('change', renderNota);
+  document.getElementById('notaTexto').addEventListener('input', e=>{
+    const dataAtual = document.getElementById('notaData').value || todayStr();
+    state.rascunhoNota = { data: dataAtual, texto: e.target.value };
+    saveLocal();
+  });
 
   document.getElementById('histDeDiaria').addEventListener('change', ()=>renderHistory('diaria'));
   document.getElementById('histAteDiaria').addEventListener('change', ()=>renderHistory('diaria'));
@@ -1876,7 +1957,8 @@ window.PT = {
   novaTarefa: openNovaTarefaModal,
   openFechar: openFecharModal,
   tvSelectPerson: tvSelectPerson,
-  editarHistorico: openEditModal
+  editarHistorico: openEditModal,
+  removerPessoa: removerPessoa
 };
 
 /* ---------------- Init ---------------- */
