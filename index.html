@@ -99,6 +99,10 @@ input,select,textarea{font-family:inherit;}
 .person-badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#eef1f5;color:var(--muted);}
 .person-badge.has-open{background:var(--warning-bg);color:var(--warning);}
 .person-badge.critical{background:var(--danger-bg);color:var(--danger);}
+.progress-wrap{display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;}
+.progress-bar-bg{flex:1;height:6px;border-radius:4px;background:#e6e9ef;overflow:hidden;}
+.progress-bar-fill{height:100%;border-radius:4px;transition:width .2s;}
+.progress-pct{font-size:10.5px;font-weight:700;color:var(--muted);min-width:30px;text-align:right;}
 .task-list{padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:14px;}
 .task-chip{border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;cursor:pointer;transition:.12s;background:#fafbfc;}
 .task-chip:hover{border-color:var(--gestamp-blue);background:var(--gestamp-blue-light);}
@@ -204,10 +208,6 @@ table.hist-table tr:last-child td{border-bottom:none;}
     <span class="app-sub">Gestamp Taubaté — Reunião das 10h &amp; Acompanhamento</span>
   </div>
   <div class="topbar-spacer"></div>
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="diaria">Dia a Dia</button>
-    <button class="tab-btn" data-tab="fds">Fim de Semana</button>
-  </div>
   <button class="icon-btn primary" id="btnTvMode">📺 Modo TV</button>
 </div>
 
@@ -247,6 +247,20 @@ table.hist-table tr:last-child td{border-bottom:none;}
       </div>
     </div>
 
+    <div class="meeting-notes" style="border-left-color:#8A6DFF;">
+      <h3 style="color:#6a4fd4;">🔄 Passagem de Turno
+        <input type="date" id="passagemData" style="margin-left:auto;font-size:11.5px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-weight:400;color:var(--text);">
+      </h3>
+      <textarea id="passagemTexto" placeholder="O que o próximo turno precisa saber ao assumir..."></textarea>
+      <div class="mn-footer">
+        <span id="passagemMeta">ainda não salvo</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="text" id="passagemPreenchidoPor" list="dlSupervisores" placeholder="Preenchido por..." style="padding:5px 9px;border:1px solid var(--border);border-radius:6px;font-size:11.5px;width:150px;">
+          <button class="btn blue" id="btnSalvarPassagem" style="padding:5px 12px;font-size:11.5px;background:#6a4fd4;border-color:#6a4fd4;">Salvar passagem</button>
+        </div>
+      </div>
+    </div>
+
     <div class="section-label"><span>Quadro por pessoa</span><button id="btnNovaPessoaDiaria" class="btn" style="padding:3px 10px;font-size:11px;">+ Nova pessoa</button></div>
     <div class="people-grid" id="grid-diaria"></div>
 
@@ -267,36 +281,7 @@ table.hist-table tr:last-child td{border-bottom:none;}
       </div>
       <div style="overflow-x:auto;">
         <table class="hist-table" id="histTableDiaria">
-          <thead><tr><th>Pessoa</th><th>Categoria</th><th>Descrição</th><th>Aberta</th><th>Prazo</th><th>Fechada</th><th>Status</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- ======= FDS ======= -->
-  <div class="pane" id="pane-fds">
-    <div class="section-label"><span>Acompanhamento de Fim de Semana</span><button id="btnNovaPessoaFds" class="btn" style="padding:3px 10px;font-size:11px;">+ Nova pessoa</button></div>
-    <div class="people-grid" id="grid-fds"></div>
-
-    <div class="section-label">Histórico FDS</div>
-    <div class="history-box">
-      <div class="history-head">
-        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;">De</span>
-        <input type="date" id="histDeFds">
-        <span style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;">Até</span>
-        <input type="date" id="histAteFds">
-        <input type="text" id="histBuscaFds" placeholder="Buscar por nome, descrição..." style="flex:1;min-width:180px;border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:12.5px;">
-        <select id="histStatusFds" style="border:1px solid var(--border);border-radius:7px;padding:6px 9px;font-size:12.5px;">
-          <option value="todos">Todos os status</option>
-          <option value="aberta">Só abertas</option>
-          <option value="fechada">Só fechadas</option>
-        </select>
-        <button class="btn" id="btnHistLimparFds" style="padding:6px 12px;font-size:11.5px;">Limpar</button>
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="hist-table" id="histTableFds">
-          <thead><tr><th>Pessoa</th><th>Descrição</th><th>Aberta</th><th>Prazo</th><th>Fechada</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Pessoa</th><th>Categoria</th><th>Descrição</th><th>Aberta</th><th>Prazo</th><th>Fechada</th><th>Andamento</th><th>Status</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -342,6 +327,10 @@ table.hist-table tr:last-child td{border-bottom:none;}
       <div class="form-row">
         <label>Distribuição <span style="text-transform:none;font-weight:400;color:var(--muted);">(quem mais deve acompanhar)</span></label>
         <div id="mtDistribuicao" class="distribuicao-box"></div>
+      </div>
+      <div class="form-row">
+        <label>Andamento inicial (%)</label>
+        <input type="number" id="mtAndamento" min="0" max="100" step="5" value="0">
       </div>
       <div class="form-row">
         <label>Preenchido por</label>
@@ -428,6 +417,10 @@ table.hist-table tr:last-child td{border-bottom:none;}
         <div id="edDistribuicao" class="distribuicao-box"></div>
       </div>
       <div class="form-row">
+        <label>Andamento (%)</label>
+        <input type="number" id="edAndamento" min="0" max="100" step="5">
+      </div>
+      <div class="form-row">
         <label>Status</label>
         <select id="edStatus">
           <option value="aberta">Aberta</option>
@@ -506,6 +499,17 @@ table.hist-table tr:last-child td{border-bottom:none;}
       <button id="btnTvNotaHoje" style="border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;color:var(--muted);">Hoje</button>
     </div>
     <div id="tvNotaConteudo" style="font-size:15px;line-height:1.5;color:var(--text);"></div>
+  </div>
+
+  <div class="tv-panel" id="tvPassagemPanel" style="margin-bottom:22px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <h4 id="tvPassagemTitulo" style="margin-bottom:0;flex:1;">🔄 Passagem de Turno</h4>
+      <button id="btnTvPassagemPrev" style="border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px;font-size:13px;cursor:pointer;color:#6a4fd4;">◀</button>
+      <input type="date" id="tvPassagemDataInput" style="border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;">
+      <button id="btnTvPassagemNext" style="border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px;font-size:13px;cursor:pointer;color:#6a4fd4;">▶</button>
+      <button id="btnTvPassagemHoje" style="border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;color:var(--muted);">Hoje</button>
+    </div>
+    <div id="tvPassagemConteudo" style="font-size:15px;line-height:1.5;color:var(--text);"></div>
   </div>
 
   <div class="tv-panel" style="margin-bottom:22px;">
@@ -961,6 +965,7 @@ let state = {
   config: { gasUrl:'https://script.google.com/macros/s/AKfycby9RAaXgGXmF-alEUO46QtBgW8dUakAgSDXNSjhBVLMJCkmN8J9JNCbRSToesxsj4CUbw/exec' },
   ultimoPreenchidoPor: '',
   rascunhoNota: { data: '', texto: '' },
+  rascunhoPassagem: { data: '', texto: '' },
   turnoAtual: '1º Turno',
   pessoas: BASE_PESSOAS.slice(),
   categorias: BASE_CATEGORIAS.slice(),
@@ -969,13 +974,15 @@ let state = {
     turnos: ['1º Turno','2º Turno','3º Turno','2x2x3 dia','2x2x3 noite']
   },
   tasks: [],   // {id,aba,pessoa,categoria,descricao,turno_abertura,aberto_por,data_abertura,prazo_fechamento,status,turno_fechamento,fechado_por,data_fechamento,observacao_fechamento,updated_at}
-  notas: []    // {data,texto,atualizado_por,updated_at}
+  notas: [],   // {data,texto,atualizado_por,updated_at}
+  passagens: [] // {data,texto,atualizado_por,updated_at}
 };
 let currentTab = 'diaria';
 let tvInterval = null;
 let chartCategoria=null;
 let tvSelectedPerson=null;
 let tvNotaData=null;
+let tvPassagemData=null;
 
 /* ---------------- Persistência local ---------------- */
 const BASE_TURNOS = ['1º Turno','2º Turno','3º Turno','2x2x3 dia','2x2x3 noite'];
@@ -1056,6 +1063,7 @@ async function gasCall(payload){
   params.set('_', bust);
   if(payload.action === 'upsert_task') params.set('payload', JSON.stringify(payload.task));
   else if(payload.action === 'upsert_nota') params.set('payload', JSON.stringify(payload.nota));
+  else if(payload.action === 'upsert_passagem') params.set('payload', JSON.stringify(payload.passagem));
   else if(payload.action === 'delete_task') params.set('id', payload.id);
   else if(payload.action === 'upsert_config'){ params.set('chave', payload.chave); params.set('valor', JSON.stringify(payload.valor)); }
 
@@ -1110,6 +1118,7 @@ async function syncNow(showToast){
     const remote = await gasFetchAll();
     state.tasks = mergeById(state.tasks, remote.tasks||[], 'id');
     state.notas = mergeById(state.notas, remote.notas||[], 'data');
+    state.passagens = mergeById(state.passagens, remote.passagem||[], 'data');
     if(remote.config){
       // Pessoas agora pode ser removida, então a lista do servidor é a fonte da
       // verdade (substitui a local) sempre que já existir algo publicado —
@@ -1153,6 +1162,18 @@ async function pushNota(nota){
     setSyncStatus('ok','sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
   }catch(e){
     console.error('Falha ao enviar nota:', e);
+    setSyncStatus('err','falha ao enviar: '+e.message);
+  }
+}
+
+async function pushPassagem(passagem){
+  saveLocal(); renderAll();
+  if(!state.config.gasUrl) return;
+  try{
+    await gasCall({action:'upsert_passagem', passagem});
+    setSyncStatus('ok','sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){
+    console.error('Falha ao enviar passagem:', e);
     setSyncStatus('err','falha ao enviar: '+e.message);
   }
 }
@@ -1218,6 +1239,7 @@ function openNovaTarefaModal(pessoa, aba){
   document.getElementById('mtDescricao').value = '';
   document.getElementById('mtDataPreenchimento').value = fmtDateTime(nowIso());
   document.getElementById('mtPrazo').value = '';
+  document.getElementById('mtAndamento').value = 0;
   document.getElementById('mtTurno').value = state.turnoAtual;
   document.getElementById('mtAbertoPor').value = state.ultimoPreenchidoPor;
   document.getElementById('mtCategoriaRow').style.display = (aba==='diaria') ? 'block':'none';
@@ -1234,6 +1256,9 @@ function confirmarNovaTarefa(){
   addSugestao('supervisores', abertoPor);
   const prazoLocal = document.getElementById('mtPrazo').value; // "YYYY-MM-DDTHH:mm"
   const distribuicao = getDistribuicaoSelecionada('mtDistribuicao').join(', ');
+  let andamento = parseInt(document.getElementById('mtAndamento').value, 10);
+  if(isNaN(andamento)) andamento = 0;
+  andamento = Math.max(0, Math.min(100, andamento));
   const task = {
     id: uid(),
     aba: pendingAba,
@@ -1245,6 +1270,7 @@ function confirmarNovaTarefa(){
     data_abertura: nowIso(),
     prazo_fechamento: prazoLocal ? new Date(prazoLocal).toISOString() : null,
     distribuicao: distribuicao || null,
+    andamento: andamento,
     status: 'aberta',
     turno_fechamento: null,
     fechado_por: null,
@@ -1282,6 +1308,7 @@ function confirmarFechar(){
   state.ultimoPreenchidoPor = fechadoPor;
   addSugestao('supervisores', fechadoPor);
   t.status = 'fechada';
+  t.andamento = 100;
   t.observacao_fechamento = document.getElementById('mfObs').value.trim();
   t.fechado_por = fechadoPor;
   t.turno_fechamento = state.turnoAtual;
@@ -1302,6 +1329,21 @@ function excluirTarefaPendente(){
   }
   hideModal('modalFechar');
   toast('Tarefa excluída.');
+}
+
+function atualizarAndamento(taskId){
+  const t = state.tasks.find(x=>x.id===taskId);
+  if(!t) return;
+  const atual = t.andamento||0;
+  const nova = prompt('Andamento de "'+t.descricao.slice(0,50)+'" (0 a 100%):', atual);
+  if(nova===null) return;
+  let pct = parseInt(nova, 10);
+  if(isNaN(pct)){ toast('Digite um número entre 0 e 100.'); return; }
+  pct = Math.max(0, Math.min(100, pct));
+  t.andamento = pct;
+  t.updated_at = nowIso();
+  pushTask(t);
+  toast('Andamento atualizado para '+pct+'%.');
 }
 
 /* ---------------- Render ---------------- */
@@ -1390,6 +1432,20 @@ function removerPessoa(pessoa){
   toast('"'+pessoa+'" removido(a) do quadro.');
 }
 
+function progressColor(pct){
+  if(pct>=100) return 'var(--success)';
+  if(pct>=50) return 'var(--gestamp-blue)';
+  if(pct>=20) return 'var(--warning)';
+  return 'var(--danger)';
+}
+function progressBarHtml(t){
+  const pct = Math.max(0, Math.min(100, t.andamento||0));
+  return `<div class="progress-wrap" onclick="event.stopPropagation();PT.atualizarAndamento('${t.id}')" title="Clique para atualizar o andamento">
+    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%;background:${progressColor(pct)};"></div></div>
+    <span class="progress-pct">${pct}%</span>
+  </div>`;
+}
+
 function personCardHtml(pessoa, aba){
   const open = openTasksFor(pessoa, aba);
   const badgeClass = open.length===0 ? '' : (open.some(t=>isOverdue(t)) ? 'critical' : 'has-open');
@@ -1404,6 +1460,7 @@ function personCardHtml(pessoa, aba){
           <div class="tc-meta"><span>${escapeHtml(t.turno_abertura)} · ${escapeHtml(t.aberto_por)}</span><span>${fmtDateTime(t.data_abertura).split(' ')[1]||''}</span></div>
           ${prazoLine}
           ${distLine}
+          ${progressBarHtml(t)}
         </div>`;
       }).join('')
     : `<div class="empty-hint">Nenhuma tarefa aberta.</div>`;
@@ -1412,6 +1469,7 @@ function personCardHtml(pessoa, aba){
       <span class="person-name">${escapeHtml(pessoa)}</span>
       <span style="display:flex;align-items:center;gap:6px;">
         <span class="person-badge ${badgeClass}">${open.length} aberta${open.length===1?'':'s'}</span>
+        <button class="remove-person-btn" title="Gerar PDF só desta pessoa" onclick="event.stopPropagation();PT.gerarPdfPessoa('${escapeHtml(pessoa)}')">🖶</button>
         <button class="remove-person-btn" title="Excluir pessoa" onclick="PT.removerPessoa('${escapeHtml(pessoa)}')">✕</button>
       </span>
     </div>
@@ -1437,7 +1495,7 @@ function renderHistory(aba){
   const rows = tasksInRange(aba, fromStr, toStr, search, statusFiltro);
   const tbody = document.querySelector('#'+tableId+' tbody');
   if(!rows.length){
-    const colspan = aba==='diaria' ? 8 : 7;
+    const colspan = 9;
     tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;color:var(--muted);padding:18px;">Nenhuma tarefa encontrada para esse período/busca.</td></tr>`;
     return;
   }
@@ -1445,29 +1503,22 @@ function renderHistory(aba){
     const statusPill = `<span class="status-pill ${t.status}">${t.status==='aberta'?'Aberta':'Fechada'}</span>` +
       (t.status==='fechada' && t.fechado_por ? `<br><span style="font-size:10.5px;color:var(--muted);">por ${escapeHtml(t.fechado_por)}</span>` : '');
     const prazoCell = t.prazo_fechamento ? prazoLabel(t) : '—';
+    const andamentoCell = `<div class="progress-wrap" style="margin-top:0;min-width:70px;" onclick="PT.atualizarAndamento('${t.id}')" title="Clique para atualizar o andamento">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${t.andamento||0}%;background:${progressColor(t.andamento||0)};"></div></div>
+      <span class="progress-pct">${t.andamento||0}%</span>
+    </div>`;
     const editBtn = `<button onclick="PT.editarHistorico('${t.id}')" style="border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;color:var(--gestamp-blue);font-weight:600;">✏️ Editar</button>`;
-    if(aba==='diaria'){
-      return `<tr>
+    return `<tr>
         <td>${escapeHtml(t.pessoa)}</td>
         <td>${escapeHtml(t.categoria)}</td>
         <td>${escapeHtml(t.descricao)}${t.distribuicao?`<br><span style="color:var(--muted);font-size:11.5px;">👥 ${escapeHtml(t.distribuicao)}</span>`:''}${t.observacao_fechamento?`<br><span style="color:var(--muted);font-size:11.5px;">Obs: ${escapeHtml(t.observacao_fechamento)}</span>`:''}</td>
         <td>${fmtDateTime(t.data_abertura)}<br><span style="color:var(--muted);font-size:11px;">${escapeHtml(t.turno_abertura)} · ${escapeHtml(t.aberto_por)}</span></td>
         <td>${prazoCell}</td>
         <td>${t.data_fechamento ? fmtDateTime(t.data_fechamento)+`<br><span style="color:var(--muted);font-size:11px;">${escapeHtml(t.turno_fechamento||'')} · ${escapeHtml(t.fechado_por||'')}</span>` : '—'}</td>
+        <td>${andamentoCell}</td>
         <td>${statusPill}</td>
         <td>${editBtn}</td>
       </tr>`;
-    }else{
-      return `<tr>
-        <td>${escapeHtml(t.pessoa)}</td>
-        <td>${escapeHtml(t.descricao)}${t.distribuicao?`<br><span style="color:var(--muted);font-size:11.5px;">👥 ${escapeHtml(t.distribuicao)}</span>`:''}${t.observacao_fechamento?`<br><span style="color:var(--muted);font-size:11.5px;">Obs: ${escapeHtml(t.observacao_fechamento)}</span>`:''}</td>
-        <td>${fmtDateTime(t.data_abertura)}</td>
-        <td>${prazoCell}</td>
-        <td>${t.data_fechamento ? fmtDateTime(t.data_fechamento) : '—'}</td>
-        <td>${statusPill}</td>
-        <td>${editBtn}</td>
-      </tr>`;
-    }
   }).join('');
 }
 
@@ -1487,12 +1538,27 @@ function renderNota(){
   if(!preenchidoInput.value) preenchidoInput.value = state.ultimoPreenchidoPor || '';
 }
 
+function renderPassagem(){
+  const dataInput = document.getElementById('passagemData');
+  if(!dataInput.value) dataInput.value = todayStr();
+  const dataSelecionada = dataInput.value;
+  const p = state.passagens.find(x=>x.data===dataSelecionada);
+  const textoEl = document.getElementById('passagemTexto');
+  const usuarioEstaDigitando = document.activeElement === textoEl;
+  if(!usuarioEstaDigitando){
+    const temRascunho = state.rascunhoPassagem && state.rascunhoPassagem.data === dataSelecionada && state.rascunhoPassagem.texto;
+    textoEl.value = temRascunho ? state.rascunhoPassagem.texto : (p ? p.texto : '');
+  }
+  document.getElementById('passagemMeta').textContent = p ? ('salvo por '+p.atualizado_por+' às '+fmtDateTime(p.updated_at)) : (dataSelecionada===todayStr() ? 'ainda não salvo hoje' : 'nenhuma passagem registrada nessa data');
+  const preenchidoInput = document.getElementById('passagemPreenchidoPor');
+  if(!preenchidoInput.value) preenchidoInput.value = state.ultimoPreenchidoPor || '';
+}
+
 function renderAll(){
   renderGrid('diaria');
-  renderGrid('fds');
   renderHistory('diaria');
-  renderHistory('fds');
   renderNota();
+  renderPassagem();
 }
 
 /* ---------------- Edição de histórico ---------------- */
@@ -1528,6 +1594,7 @@ function openEditModal(taskId){
   document.getElementById('edTurnoAbertura').value = t.turno_abertura || '';
   document.getElementById('edAbertoPor').value = t.aberto_por || '';
   document.getElementById('edPrazo').value = isoToLocalInput(t.prazo_fechamento);
+  document.getElementById('edAndamento').value = t.andamento||0;
   const distAtual = t.distribuicao ? t.distribuicao.split(',').map(s=>s.trim()).filter(Boolean) : [];
   renderDistribuicaoBox('edDistribuicao', t.pessoa, distAtual);
   document.getElementById('edStatus').value = t.status;
@@ -1566,6 +1633,9 @@ function salvarEdicao(){
   const prazoLocal = document.getElementById('edPrazo').value;
   t.prazo_fechamento = prazoLocal ? new Date(prazoLocal).toISOString() : null;
   t.distribuicao = getDistribuicaoSelecionada('edDistribuicao').join(', ') || null;
+  let novoAndamento = parseInt(document.getElementById('edAndamento').value, 10);
+  if(isNaN(novoAndamento)) novoAndamento = 0;
+  t.andamento = Math.max(0, Math.min(100, novoAndamento));
   t.status = status;
 
   if(status==='fechada'){
@@ -1609,12 +1679,6 @@ function showModal(id){ document.getElementById(id).classList.add('show'); }
 function hideModal(id){ document.getElementById(id).classList.remove('show'); }
 
 /* ---------------- Tabs ---------------- */
-function switchTab(tab){
-  currentTab = tab;
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
-  document.getElementById('pane-diaria').classList.toggle('active', tab==='diaria');
-  document.getElementById('pane-fds').classList.toggle('active', tab==='fds');
-}
 
 /* ---------------- Modo TV ---------------- */
 function buildTvData(){
@@ -1651,6 +1715,21 @@ function renderTv(){
       `<div style="margin-top:8px;font-size:11.5px;color:var(--muted);">Preenchido por ${escapeHtml(notaDoDia.atualizado_por||'—')} às ${fmtDateTime(notaDoDia.updated_at)}</div>`;
   }else{
     notaEl.innerHTML = `<span style="color:var(--muted);font-style:italic;">Nenhuma nota registrada ${ehHoje?'para hoje':'nessa data'}.</span>`;
+  }
+
+  if(!tvPassagemData) tvPassagemData = todayStr();
+  const passagemDataInputEl = document.getElementById('tvPassagemDataInput');
+  if(passagemDataInputEl.value !== tvPassagemData) passagemDataInputEl.value = tvPassagemData;
+  const passagemDoDia = state.passagens.find(p=>p.data===tvPassagemData);
+  const passagemEl = document.getElementById('tvPassagemConteudo');
+  const dataBrPassagem = new Date(tvPassagemData+'T00:00:00').toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'2-digit', year:'numeric'});
+  const ehHojePassagem = tvPassagemData === todayStr();
+  document.getElementById('tvPassagemTitulo').innerHTML = `🔄 Passagem de Turno <span style="font-size:12px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;">— ${dataBrPassagem}${ehHojePassagem?' (hoje)':''}</span>`;
+  if(passagemDoDia && passagemDoDia.texto && passagemDoDia.texto.trim()){
+    passagemEl.innerHTML = escapeHtml(passagemDoDia.texto).replace(/\n/g,'<br>') +
+      `<div style="margin-top:8px;font-size:11.5px;color:var(--muted);">Preenchido por ${escapeHtml(passagemDoDia.atualizado_por||'—')} às ${fmtDateTime(passagemDoDia.updated_at)}</div>`;
+  }else{
+    passagemEl.innerHTML = `<span style="color:var(--muted);font-style:italic;">Nenhuma passagem registrada ${ehHojePassagem?'para hoje':'nessa data'}.</span>`;
   }
 
   const filtroTxt = tvSelectedPerson ? ` — filtrando: <strong>${escapeHtml(tvSelectedPerson)}</strong> <button onclick="PT.tvSelectPerson('${escapeHtml(tvSelectedPerson)}')" style="margin-left:8px;border:1px solid var(--border);background:#fff;border-radius:6px;padding:2px 8px;font-size:10.5px;cursor:pointer;color:var(--muted);">✕ limpar</button>` : '';
@@ -1731,6 +1810,7 @@ function renderTvPersonDetail(){
         <div class="tdi-cat">${catLabel}</div>
         <div>${escapeHtml(t.descricao)}</div>
         <div class="tdi-meta">${escapeHtml(t.turno_abertura)} · ${escapeHtml(t.aberto_por)} · aberta em ${fmtDateTime(t.data_abertura)}${prazoTxt}${distTxt}</div>
+        ${progressBarHtml(t)}
       </div>`;
     }).join('');
 }
@@ -1743,6 +1823,7 @@ function tvSelectPerson(pessoa){
 function enterTv(){
   tvSelectedPerson = null;
   tvNotaData = todayStr();
+  tvPassagemData = todayStr();
   document.getElementById('tvOverlay').classList.add('show');
   renderTv();
   tvInterval = setInterval(()=>{ syncNow(false); renderTv(); }, 20000);
@@ -1764,9 +1845,22 @@ function tvNotaHoje(){
 function tvNotaDefinirData(valor){
   if(valor){ tvNotaData = valor; renderTv(); }
 }
+function tvPassagemMudarDia(delta){
+  const d = new Date(tvPassagemData+'T00:00:00');
+  d.setDate(d.getDate()+delta);
+  tvPassagemData = d.toISOString().slice(0,10);
+  renderTv();
+}
+function tvPassagemHoje(){
+  tvPassagemData = todayStr();
+  renderTv();
+}
+function tvPassagemDefinirData(valor){
+  if(valor){ tvPassagemData = valor; renderTv(); }
+}
 
 /* ---------------- PDF ---------------- */
-function gerarPdfDoDia(){
+function gerarPdfDoDia(pessoaFiltro){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({orientation:'landscape'});
   const dateStr = todayStr();
@@ -1780,60 +1874,78 @@ function gerarPdfDoDia(){
   doc.text('GESTAMP TAUBATÉ', 10, 10.5);
   doc.setFontSize(10);
   doc.setFont(undefined,'normal');
-  doc.text('Passagem de Turno — PCP/CS — '+dateBr, 297-10, 10.5, {align:'right'});
+  const tituloDireita = pessoaFiltro
+    ? ('Passagem de Turno — PCP/CS — '+pessoaFiltro+' — '+dateBr)
+    : ('Passagem de Turno — PCP/CS — '+dateBr);
+  doc.text(tituloDireita, 297-10, 10.5, {align:'right'});
 
   let y = 24;
-  const nota = state.notas.find(n=>n.data===dateStr);
   doc.setTextColor(30,30,30);
-  doc.setFontSize(11);
-  doc.setFont(undefined,'bold');
-  doc.text('INF. da Reunião das 10h00', 10, y);
-  doc.setFont(undefined,'normal');
-  doc.setFontSize(9.5);
-  const notaTexto = nota && nota.texto ? nota.texto : '(sem registro)';
-  const notaLines = doc.splitTextToSize(notaTexto, 277);
-  doc.text(notaLines, 10, y+6);
-  y += 6 + notaLines.length*4.2 + 6;
 
-  const rowsDiaria = tasksInRange('diaria', dateStr, dateStr, '').map(t=>[
-    t.pessoa, t.categoria, t.descricao + (t.distribuicao ? ('\nDistribuição: '+t.distribuicao) : ''),
-    t.turno_abertura+' · '+t.aberto_por,
-    t.prazo_fechamento ? fmtDateTime(t.prazo_fechamento) : '—',
-    t.status==='fechada' ? (t.turno_fechamento+' · '+t.fechado_por) : '—',
-    t.status==='aberta' ? 'ABERTA' : ('FECHADA (por '+(t.fechado_por||'?')+')'),
-    t.observacao_fechamento || ''
-  ]);
+  // Nota da reunião e Passagem de Turno só entram no relatório geral
+  // (quando é o PDF de uma pessoa só, vai direto pras tarefas dela).
+  if(!pessoaFiltro){
+    const nota = state.notas.find(n=>n.data===dateStr);
+    doc.setFontSize(11);
+    doc.setFont(undefined,'bold');
+    doc.text('INF. da Reunião das 10h00', 10, y);
+    doc.setFont(undefined,'normal');
+    doc.setFontSize(9.5);
+    const notaTexto = nota && nota.texto ? nota.texto : '(sem registro)';
+    const notaLines = doc.splitTextToSize(notaTexto, 277);
+    doc.text(notaLines, 10, y+6);
+    y += 6 + notaLines.length*4.2 + 8;
+
+    const passagem = state.passagens.find(p=>p.data===dateStr);
+    doc.setFontSize(11);
+    doc.setFont(undefined,'bold');
+    doc.text('Passagem de Turno', 10, y);
+    doc.setFont(undefined,'normal');
+    doc.setFontSize(9.5);
+    const passagemTexto = passagem && passagem.texto ? passagem.texto : '(sem registro)';
+    const passagemLines = doc.splitTextToSize(passagemTexto, 277);
+    doc.text(passagemLines, 10, y+6);
+    y += 6 + passagemLines.length*4.2 + 8;
+  }else{
+    doc.setFontSize(10.5);
+    doc.setFont(undefined,'normal');
+    doc.text('Relatório individual gerado em '+fmtDateTime(nowIso()), 10, y);
+    y += 8;
+  }
+
+  const rowsDiaria = tasksInRange('diaria', dateStr, dateStr, '')
+    .filter(t=> !pessoaFiltro || t.pessoa===pessoaFiltro)
+    .map(t=>[
+      t.pessoa, t.categoria, t.descricao + (t.distribuicao ? ('\nDistribuição: '+t.distribuicao) : ''),
+      t.turno_abertura+' · '+t.aberto_por,
+      t.prazo_fechamento ? fmtDateTime(t.prazo_fechamento) : '—',
+      t.status==='fechada' ? (t.turno_fechamento+' · '+t.fechado_por) : '—',
+      (t.andamento||0)+'%',
+      t.status==='aberta' ? 'ABERTA' : ('FECHADA (por '+(t.fechado_por||'?')+')'),
+      t.observacao_fechamento || ''
+    ]);
   doc.autoTable({
     startY: y,
-    head: [['Pessoa','Categoria','Descrição','Abertura','Prazo','Fechamento','Status','Observação']],
-    body: rowsDiaria.length ? rowsDiaria : [['—','—','Nenhuma tarefa registrada hoje','—','—','—','—','—']],
+    head: [['Pessoa','Categoria','Descrição','Abertura','Prazo','Fechamento','Andamento','Status','Observação']],
+    body: rowsDiaria.length ? rowsDiaria : [['—','—','Nenhuma tarefa registrada hoje'+(pessoaFiltro?' para '+pessoaFiltro:'')+'.','—','—','—','—','—','—']],
     styles:{fontSize:8, cellPadding:2.2},
     headStyles:{fillColor:[0,48,135], textColor:255},
     theme:'grid'
   });
 
-  let y2 = doc.lastAutoTable.finalY + 10;
-  const rowsFds = tasksInRange('fds', dateStr, dateStr, '');
-  if(rowsFds.length){
-    doc.setFontSize(11); doc.setFont(undefined,'bold');
-    doc.text('Acompanhamento de Fim de Semana', 10, y2);
-    doc.autoTable({
-      startY: y2+4,
-      head:[['Pessoa','Descrição','Abertura','Prazo','Fechamento','Status']],
-      body: rowsFds.map(t=>[t.pessoa,t.descricao + (t.distribuicao ? ('\nDistribuição: '+t.distribuicao) : ''),fmtDateTime(t.data_abertura),t.prazo_fechamento?fmtDateTime(t.prazo_fechamento):'—',t.data_fechamento?fmtDateTime(t.data_fechamento):'—', t.status==='aberta'?'ABERTA':('FECHADA (por '+(t.fechado_por||'?')+')')]),
-      styles:{fontSize:8, cellPadding:2.2},
-      headStyles:{fillColor:[0,48,135], textColor:255},
-      theme:'grid'
-    });
-  }
+  const nomeArquivo = pessoaFiltro
+    ? ('Passagem_Turno_PCP_CS_'+pessoaFiltro.replace(/\s+/g,'_')+'_'+dateStr+'.pdf')
+    : ('Passagem_Turno_PCP_CS_'+dateStr+'.pdf');
+  doc.save(nomeArquivo);
+  toast(pessoaFiltro ? ('PDF de '+pessoaFiltro+' gerado.') : 'PDF gerado.');
+}
 
-  doc.save('Passagem_Turno_PCP_CS_'+dateStr+'.pdf');
-  toast('PDF gerado.');
+function gerarPdfPessoa(pessoa){
+  gerarPdfDoDia(pessoa);
 }
 
 /* ---------------- Eventos ---------------- */
 function bindEvents(){
-  document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click', ()=>switchTab(b.dataset.tab)));
 
   document.getElementById('mtCategoria').addEventListener('change', e=>{
     if(e.target.value === NOVA_CATEGORIA_VALUE){
@@ -1848,7 +1960,6 @@ function bindEvents(){
     e.target.dataset.prev = e.target.value;
   });
   document.getElementById('btnNovaPessoaDiaria').addEventListener('click', addNovaPessoa);
-  document.getElementById('btnNovaPessoaFds').addEventListener('click', addNovaPessoa);
 
   document.getElementById('selTurno').addEventListener('change', e=>{
     if(e.target.value === NOVO_TURNO_VALUE){
@@ -1883,7 +1994,7 @@ function bindEvents(){
     syncNow(true);
   });
   document.getElementById('btnSyncNow').addEventListener('click', ()=>syncNow(true));
-  document.getElementById('btnPdf').addEventListener('click', gerarPdfDoDia);
+  document.getElementById('btnPdf').addEventListener('click', ()=>gerarPdfDoDia());
 
   document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', ()=>hideModal(b.dataset.close)));
   document.getElementById('btnSalvarTarefa').addEventListener('click', confirmarNovaTarefa);
@@ -1920,6 +2031,29 @@ function bindEvents(){
     saveLocal();
   });
 
+  document.getElementById('btnSalvarPassagem').addEventListener('click', ()=>{
+    const texto = document.getElementById('passagemTexto').value.trim();
+    const preenchidoPor = document.getElementById('passagemPreenchidoPor').value.trim();
+    const dataPassagem = document.getElementById('passagemData').value || todayStr();
+    if(!preenchidoPor){ toast('Preencha "Preenchido por" antes de salvar a passagem.'); return; }
+    state.ultimoPreenchidoPor = preenchidoPor;
+    addSugestao('supervisores', preenchidoPor);
+    let p = state.passagens.find(x=>x.data===dataPassagem);
+    if(!p){ p = {data: dataPassagem}; state.passagens.push(p); }
+    p.texto = texto;
+    p.atualizado_por = preenchidoPor;
+    p.updated_at = nowIso();
+    state.rascunhoPassagem = { data: '', texto: '' };
+    pushPassagem(p);
+    toast('Passagem de turno salva ('+new Date(dataPassagem+'T00:00:00').toLocaleDateString('pt-BR')+').');
+  });
+  document.getElementById('passagemData').addEventListener('change', renderPassagem);
+  document.getElementById('passagemTexto').addEventListener('input', e=>{
+    const dataAtual = document.getElementById('passagemData').value || todayStr();
+    state.rascunhoPassagem = { data: dataAtual, texto: e.target.value };
+    saveLocal();
+  });
+
   document.getElementById('histDeDiaria').addEventListener('change', ()=>renderHistory('diaria'));
   document.getElementById('histAteDiaria').addEventListener('change', ()=>renderHistory('diaria'));
   document.getElementById('histBuscaDiaria').addEventListener('input', ()=>renderHistory('diaria'));
@@ -1931,24 +2065,16 @@ function bindEvents(){
     document.getElementById('histStatusDiaria').value = 'todos';
     renderHistory('diaria');
   });
-  document.getElementById('histDeFds').addEventListener('change', ()=>renderHistory('fds'));
-  document.getElementById('histAteFds').addEventListener('change', ()=>renderHistory('fds'));
-  document.getElementById('histBuscaFds').addEventListener('input', ()=>renderHistory('fds'));
-  document.getElementById('histStatusFds').addEventListener('change', ()=>renderHistory('fds'));
-  document.getElementById('btnHistLimparFds').addEventListener('click', ()=>{
-    document.getElementById('histDeFds').value = todayStr();
-    document.getElementById('histAteFds').value = todayStr();
-    document.getElementById('histBuscaFds').value = '';
-    document.getElementById('histStatusFds').value = 'todos';
-    renderHistory('fds');
-  });
-
   document.getElementById('btnTvMode').addEventListener('click', enterTv);
   document.getElementById('btnTvExit').addEventListener('click', exitTv);
   document.getElementById('btnTvNotaPrev').addEventListener('click', ()=>tvNotaMudarDia(-1));
   document.getElementById('btnTvNotaNext').addEventListener('click', ()=>tvNotaMudarDia(1));
   document.getElementById('btnTvNotaHoje').addEventListener('click', tvNotaHoje);
   document.getElementById('tvNotaDataInput').addEventListener('change', e=>tvNotaDefinirData(e.target.value));
+  document.getElementById('btnTvPassagemPrev').addEventListener('click', ()=>tvPassagemMudarDia(-1));
+  document.getElementById('btnTvPassagemNext').addEventListener('click', ()=>tvPassagemMudarDia(1));
+  document.getElementById('btnTvPassagemHoje').addEventListener('click', tvPassagemHoje);
+  document.getElementById('tvPassagemDataInput').addEventListener('change', e=>tvPassagemDefinirData(e.target.value));
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') exitTv(); });
 }
 
@@ -1958,7 +2084,9 @@ window.PT = {
   openFechar: openFecharModal,
   tvSelectPerson: tvSelectPerson,
   editarHistorico: openEditModal,
-  removerPessoa: removerPessoa
+  removerPessoa: removerPessoa,
+  atualizarAndamento: atualizarAndamento,
+  gerarPdfPessoa: gerarPdfPessoa
 };
 
 /* ---------------- Init ---------------- */
@@ -1969,8 +2097,6 @@ function init(){
   document.getElementById('selTurno').value = state.turnoAtual;
   document.getElementById('histDeDiaria').value = todayStr();
   document.getElementById('histAteDiaria').value = todayStr();
-  document.getElementById('histDeFds').value = todayStr();
-  document.getElementById('histAteFds').value = todayStr();
   bindEvents();
   renderAll();
   if(state.config.gasUrl){ syncNow(false); }
