@@ -1888,9 +1888,12 @@ function tvSetViewMode(mode){
   tvSelectedCategoria = null;
   document.querySelectorAll('.tv-mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
   const showQuadroECharts = mode!=='notas';
+  const showNotas = mode==='notas';
   document.getElementById('tvKpis').style.display = showQuadroECharts ? '' : 'none';
   document.getElementById('tvQuadroPanel').style.display = showQuadroECharts ? '' : 'none';
   document.getElementById('tvChartsPanel').style.display = showQuadroECharts ? '' : 'none';
+  document.getElementById('tvNotaPanel').style.display = showNotas ? '' : 'none';
+  document.getElementById('tvPassagemPanel').style.display = showNotas ? '' : 'none';
   renderTv();
 }
 
