@@ -156,6 +156,10 @@ table.hist-table tr:last-child td{border-bottom:none;}
 .tv-exit{border:1px solid var(--border);background:#fff;color:var(--text);padding:9px 16px;border-radius:8px;font-weight:700;font-size:13px;box-shadow:var(--shadow);}
 .tv-exit:hover{background:#f7f9fc;}
 .tv-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px;}
+.tv-view-switch{display:flex;gap:8px;margin-bottom:20px;}
+.tv-mode-btn{border:1px solid var(--border);background:#fff;color:var(--muted);padding:9px 18px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;box-shadow:var(--shadow);}
+.tv-mode-btn:hover{background:var(--gestamp-blue-light);color:var(--gestamp-blue);}
+.tv-mode-btn.active{background:var(--gestamp-blue);color:#fff;border-color:var(--gestamp-blue);}
 .tv-kpi{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);}
 .tv-kpi .val{font-size:34px;font-weight:800;color:var(--gestamp-blue);}
 .tv-kpi .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:2px;}
@@ -488,6 +492,11 @@ table.hist-table tr:last-child td{border-bottom:none;}
     <span class="tv-date" id="tvDate"></span>
     <button class="tv-exit" id="btnTvExit">Sair (ESC)</button>
   </div>
+  <div class="tv-view-switch" id="tvViewSwitch">
+    <button class="tv-mode-btn active" data-mode="padrao">👤 Por pessoa</button>
+    <button class="tv-mode-btn" data-mode="categoria">🏷️ Por categoria</button>
+    <button class="tv-mode-btn" data-mode="notas">📋 Só notas</button>
+  </div>
   <div class="tv-kpis" id="tvKpis"></div>
 
   <div class="tv-panel" id="tvNotaPanel" style="margin-bottom:22px;">
@@ -512,13 +521,13 @@ table.hist-table tr:last-child td{border-bottom:none;}
     <div id="tvPassagemConteudo" style="font-size:15px;line-height:1.5;color:var(--text);"></div>
   </div>
 
-  <div class="tv-panel" style="margin-bottom:22px;">
+  <div class="tv-panel" id="tvQuadroPanel" style="margin-bottom:22px;">
     <h4 id="tvPeopleTitle">👥 Quadro por pessoa — clique num nome para detalhar</h4>
     <div class="tv-people-grid" id="tvPeopleGrid"></div>
     <div class="tv-people-detail" id="tvPeopleDetail" style="display:none;"></div>
   </div>
 
-  <div class="tv-charts">
+  <div class="tv-charts" id="tvChartsPanel">
     <div class="tv-panel">
       <h4 id="tvCategoriaTitle">Tarefas abertas por categoria</h4>
       <canvas id="chartCategoria"></canvas>
@@ -981,6 +990,8 @@ let currentTab = 'diaria';
 let tvInterval = null;
 let chartCategoria=null;
 let tvSelectedPerson=null;
+let tvSelectedCategoria=null;
+let tvViewMode='padrao'; // 'padrao' | 'categoria' | 'notas'
 let tvNotaData=null;
 let tvPassagemData=null;
 
@@ -1683,11 +1694,17 @@ function hideModal(id){ document.getElementById(id).classList.remove('show'); }
 /* ---------------- Modo TV ---------------- */
 function buildTvData(){
   const openAllGeral = state.tasks.filter(t=>t.status==='aberta');
-  const openAll = tvSelectedPerson ? openAllGeral.filter(t=>t.pessoa===tvSelectedPerson) : openAllGeral;
+  const filtroAtivo = tvViewMode==='categoria' ? tvSelectedCategoria : tvSelectedPerson;
+  const campoFiltro = tvViewMode==='categoria' ? 'categoria' : 'pessoa';
+  const openAll = filtroAtivo ? openAllGeral.filter(t=>t[campoFiltro]===filtroAtivo) : openAllGeral;
 
   const porPessoa = {};
   state.pessoas.forEach(p=>porPessoa[p]=0);
   openAllGeral.forEach(t=>{ porPessoa[t.pessoa] = (porPessoa[t.pessoa]||0)+1; });
+
+  const porCategoriaGeral = {};
+  state.categorias.forEach(c=>porCategoriaGeral[c]=0);
+  openAllGeral.filter(t=>t.aba==='diaria').forEach(t=>{ porCategoriaGeral[t.categoria] = (porCategoriaGeral[t.categoria]||0)+1; });
 
   const porCategoria = {};
   openAll.filter(t=>t.aba==='diaria').forEach(t=>{ porCategoria[t.categoria] = (porCategoria[t.categoria]||0)+1; });
@@ -1695,7 +1712,7 @@ function buildTvData(){
   const aging = openAll.slice().sort((a,b)=>new Date(a.data_abertura)-new Date(b.data_abertura)).slice(0,6);
   const criticas = openAll.filter(t=>isOverdue(t)).length;
 
-  return {openAll, porPessoa, porCategoria, aging, criticas};
+  return {openAll, porPessoa, porCategoriaGeral, porCategoria, aging, criticas};
 }
 
 function renderTv(){
@@ -1732,8 +1749,10 @@ function renderTv(){
     passagemEl.innerHTML = `<span style="color:var(--muted);font-style:italic;">Nenhuma passagem registrada ${ehHojePassagem?'para hoje':'nessa data'}.</span>`;
   }
 
-  const filtroTxt = tvSelectedPerson ? ` — filtrando: <strong>${escapeHtml(tvSelectedPerson)}</strong> <button onclick="PT.tvSelectPerson('${escapeHtml(tvSelectedPerson)}')" style="margin-left:8px;border:1px solid var(--border);background:#fff;border-radius:6px;padding:2px 8px;font-size:10.5px;cursor:pointer;color:var(--muted);">✕ limpar</button>` : '';
-  document.getElementById('tvPeopleTitle').innerHTML = '👥 Quadro por pessoa — clique num nome para detalhar'+filtroTxt;
+  const filtroTxt = tvViewMode==='categoria'
+    ? (tvSelectedCategoria ? ` — filtrando: <strong>${escapeHtml(tvSelectedCategoria)}</strong> <button onclick="PT.tvSelectCategoria('${escapeHtml(tvSelectedCategoria)}')" style="margin-left:8px;border:1px solid var(--border);background:#fff;border-radius:6px;padding:2px 8px;font-size:10.5px;cursor:pointer;color:var(--muted);">✕ limpar</button>` : '')
+    : (tvSelectedPerson ? ` — filtrando: <strong>${escapeHtml(tvSelectedPerson)}</strong> <button onclick="PT.tvSelectPerson('${escapeHtml(tvSelectedPerson)}')" style="margin-left:8px;border:1px solid var(--border);background:#fff;border-radius:6px;padding:2px 8px;font-size:10.5px;cursor:pointer;color:var(--muted);">✕ limpar</button>` : '');
+  document.getElementById('tvPeopleTitle').innerHTML = (tvViewMode==='categoria' ? '🏷️ Quadro por categoria — clique numa categoria para detalhar' : '👥 Quadro por pessoa — clique num nome para detalhar')+filtroTxt;
   document.getElementById('tvCategoriaTitle').innerHTML = 'Tarefas abertas por categoria'+filtroTxt;
   document.getElementById('tvAgingTitle').innerHTML = '⏱️ Tarefas mais antigas em aberto'+filtroTxt;
 
@@ -1746,32 +1765,35 @@ function renderTv(){
   kpis[1].lbl = 'Fora do prazo / +24h';
   document.getElementById('tvKpis').innerHTML = kpis.map(k=>`<div class="tv-kpi ${k.cls}"><div class="val">${k.val}</div><div class="lbl">${k.lbl}</div></div>`).join('');
 
-  renderTvPeopleGrid();
+  if(tvViewMode!=='notas'){
+    if(tvViewMode==='categoria') renderTvCategoriaGrid();
+    else renderTvPeopleGrid();
 
-  const catLabels = Object.keys(d.porCategoria);
-  const catData = catLabels.map(c=>d.porCategoria[c]);
-  const ctx2 = document.getElementById('chartCategoria').getContext('2d');
-  if(chartCategoria) chartCategoria.destroy();
-  chartCategoria = new Chart(ctx2,{
-    type:'doughnut',
-    data:{ labels: catLabels.length?catLabels:['Sem tarefas diárias'], datasets:[{ data: catLabels.length?catData:[1], backgroundColor:['#4d8dff','#ff8a5b','#ffd166','#06d6a0','#c77dff','#ef476f','#118ab2'] }] },
-    options:{
-      plugins:{
-        legend:{position:'bottom', labels:{color:'#475467', boxWidth:11, font:{size:11}}},
-        datalabels: catLabels.length ? {
-          color:'#fff',
-          font:{weight:'700', size:13},
-          formatter:(value)=> value
-        } : { display:false }
+    const catLabels = Object.keys(d.porCategoria);
+    const catData = catLabels.map(c=>d.porCategoria[c]);
+    const ctx2 = document.getElementById('chartCategoria').getContext('2d');
+    if(chartCategoria) chartCategoria.destroy();
+    chartCategoria = new Chart(ctx2,{
+      type:'doughnut',
+      data:{ labels: catLabels.length?catLabels:['Sem tarefas diárias'], datasets:[{ data: catLabels.length?catData:[1], backgroundColor:['#4d8dff','#ff8a5b','#ffd166','#06d6a0','#c77dff','#ef476f','#118ab2'] }] },
+      options:{
+        plugins:{
+          legend:{position:'bottom', labels:{color:'#475467', boxWidth:11, font:{size:11}}},
+          datalabels: catLabels.length ? {
+            color:'#fff',
+            font:{weight:'700', size:13},
+            formatter:(value)=> value
+          } : { display:false }
+        }
       }
-    }
-  });
+    });
 
-  document.getElementById('tvAging').innerHTML = d.aging.length ? d.aging.map(t=>{
-    const h = hoursSince(t.data_abertura);
-    const prazoTxt = t.prazo_fechamento ? (' · prazo '+new Date(t.prazo_fechamento).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})) : '';
-    return `<div class="tv-aging-row" style="border-left-color:${isOverdue(t)?'#d63939':'#0044b8'}"><span class="who">${escapeHtml(t.pessoa)} — ${escapeHtml(t.categoria||t.descricao.slice(0,40))}${prazoTxt}</span><span class="hrs">${h.toFixed(0)}h em aberto</span></div>`;
+    document.getElementById('tvAging').innerHTML = d.aging.length ? d.aging.map(t=>{
+      const h = hoursSince(t.data_abertura);
+      const prazoTxt = t.prazo_fechamento ? (' · prazo '+new Date(t.prazo_fechamento).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})) : '';
+      return `<div class="tv-aging-row" style="border-left-color:${isOverdue(t)?'#d63939':'#0044b8'}"><span class="who">${escapeHtml(t.pessoa)} — ${escapeHtml(t.categoria||t.descricao.slice(0,40))}${prazoTxt}</span><span class="hrs">${h.toFixed(0)}h em aberto</span></div>`;
   }).join('') : `<div style="opacity:.6;font-size:13px;">Nenhuma tarefa em aberto no momento.</div>`;
+  }
 }
 
 function renderTvPeopleGrid(){
@@ -1815,6 +1837,66 @@ function renderTvPersonDetail(){
     }).join('');
 }
 
+function renderTvCategoriaGrid(){
+  const grid = document.getElementById('tvPeopleGrid');
+  grid.innerHTML = state.categorias.map(c=>{
+    const openTasks = state.tasks.filter(t=>t.categoria===c && t.aba==='diaria' && t.status==='aberta');
+    const count = openTasks.length;
+    const hasCritical = openTasks.some(t=>isOverdue(t));
+    const activeCls = (tvSelectedCategoria===c) ? 'active' : '';
+    const critCls = hasCritical ? 'has-critical' : '';
+    return `<div class="tv-person-chip ${activeCls} ${critCls}" onclick="PT.tvSelectCategoria('${escapeHtml(c)}')">
+      <div class="tpc-name">${escapeHtml(c)}</div>
+      <div class="tpc-count ${count===0?'zero':''}">${count}</div>
+    </div>`;
+  }).join('');
+  renderTvCategoriaDetail();
+}
+
+function renderTvCategoriaDetail(){
+  const box = document.getElementById('tvPeopleDetail');
+  if(!tvSelectedCategoria){ box.style.display='none'; box.innerHTML=''; return; }
+  const items = state.tasks.filter(t=>t.categoria===tvSelectedCategoria && t.aba==='diaria' && t.status==='aberta')
+    .sort((a,b)=> new Date(a.data_abertura) - new Date(b.data_abertura));
+  box.style.display = 'block';
+  if(!items.length){
+    box.innerHTML = `<h5>Itens abertos — ${escapeHtml(tvSelectedCategoria)}</h5><div style="opacity:.6;font-size:13px;">Nenhuma tarefa em aberto nessa categoria.</div>`;
+    return;
+  }
+  box.innerHTML = `<h5>Itens abertos — ${escapeHtml(tvSelectedCategoria)} (${items.length})</h5>` +
+    items.map(t=>{
+      const aging = isOverdue(t);
+      const prazoTxt = t.prazo_fechamento ? (' · Prazo: '+fmtDateTime(t.prazo_fechamento)) : '';
+      const distTxt = t.distribuicao ? (' · 👥 '+escapeHtml(t.distribuicao)) : '';
+      return `<div class="tv-detail-item ${aging?'aging':''}">
+        <div class="tdi-cat">${escapeHtml(t.pessoa)}</div>
+        <div>${escapeHtml(t.descricao)}</div>
+        <div class="tdi-meta">${escapeHtml(t.turno_abertura)} · ${escapeHtml(t.aberto_por)} · aberta em ${fmtDateTime(t.data_abertura)}${prazoTxt}${distTxt}</div>
+        ${progressBarHtml(t)}
+      </div>`;
+    }).join('');
+}
+
+function tvSelectCategoria(categoria){
+  tvSelectedCategoria = (tvSelectedCategoria===categoria) ? null : categoria;
+  renderTv();
+}
+
+function tvSetViewMode(mode){
+  tvViewMode = mode;
+  tvSelectedPerson = null;
+  tvSelectedCategoria = null;
+  document.querySelectorAll('.tv-mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+  const showQuadroECharts = mode!=='notas';
+  const showNotas = mode==='notas';
+  document.getElementById('tvKpis').style.display = showQuadroECharts ? '' : 'none';
+  document.getElementById('tvQuadroPanel').style.display = showQuadroECharts ? '' : 'none';
+  document.getElementById('tvChartsPanel').style.display = showQuadroECharts ? '' : 'none';
+  document.getElementById('tvNotaPanel').style.display = showNotas ? '' : 'none';
+  document.getElementById('tvPassagemPanel').style.display = showNotas ? '' : 'none';
+  renderTv();
+}
+
 function tvSelectPerson(pessoa){
   tvSelectedPerson = (tvSelectedPerson===pessoa) ? null : pessoa;
   renderTv();
@@ -1822,10 +1904,11 @@ function tvSelectPerson(pessoa){
 
 function enterTv(){
   tvSelectedPerson = null;
+  tvSelectedCategoria = null;
   tvNotaData = todayStr();
   tvPassagemData = todayStr();
   document.getElementById('tvOverlay').classList.add('show');
-  renderTv();
+  tvSetViewMode('padrao');
   tvInterval = setInterval(()=>{ syncNow(false); renderTv(); }, 20000);
 }
 function exitTv(){
@@ -1882,34 +1965,38 @@ function gerarPdfDoDia(pessoaFiltro){
   let y = 24;
   doc.setTextColor(30,30,30);
 
-  // Nota da reunião e Passagem de Turno só entram no relatório geral
-  // (quando é o PDF de uma pessoa só, vai direto pras tarefas dela).
-  if(!pessoaFiltro){
-    const nota = state.notas.find(n=>n.data===dateStr);
-    doc.setFontSize(11);
-    doc.setFont(undefined,'bold');
-    doc.text('INF. da Reunião das 10h00', 10, y);
-    doc.setFont(undefined,'normal');
-    doc.setFontSize(9.5);
-    const notaTexto = nota && nota.texto ? nota.texto : '(sem registro)';
-    const notaLines = doc.splitTextToSize(notaTexto, 277);
-    doc.text(notaLines, 10, y+6);
-    y += 6 + notaLines.length*4.2 + 8;
+  // Nota da reunião e Passagem de Turno entram em todos os PDFs,
+  // gerais ou individuais — quem recebe um relatório de pessoa também
+  // precisa saber o contexto do dia.
+  const nota = state.notas.find(n=>n.data===dateStr);
+  doc.setFontSize(11);
+  doc.setFont(undefined,'bold');
+  doc.text('INF. da Reunião das 10h00', 10, y);
+  doc.setFont(undefined,'normal');
+  doc.setFontSize(9.5);
+  const notaTexto = nota && nota.texto ? nota.texto : '(sem registro)';
+  const notaLines = doc.splitTextToSize(notaTexto, 277);
+  doc.text(notaLines, 10, y+6);
+  y += 6 + notaLines.length*4.2 + 8;
 
-    const passagem = state.passagens.find(p=>p.data===dateStr);
-    doc.setFontSize(11);
-    doc.setFont(undefined,'bold');
-    doc.text('Passagem de Turno', 10, y);
+  const passagem = state.passagens.find(p=>p.data===dateStr);
+  doc.setFontSize(11);
+  doc.setFont(undefined,'bold');
+  doc.text('Passagem de Turno', 10, y);
+  doc.setFont(undefined,'normal');
+  doc.setFontSize(9.5);
+  const passagemTexto = passagem && passagem.texto ? passagem.texto : '(sem registro)';
+  const passagemLines = doc.splitTextToSize(passagemTexto, 277);
+  doc.text(passagemLines, 10, y+6);
+  y += 6 + passagemLines.length*4.2 + 8;
+
+  if(pessoaFiltro){
+    doc.setFontSize(9);
+    doc.setFont(undefined,'italic');
+    doc.setTextColor(100,100,100);
+    doc.text('Relatório individual — '+pessoaFiltro+' — gerado em '+fmtDateTime(nowIso()), 10, y);
+    doc.setTextColor(30,30,30);
     doc.setFont(undefined,'normal');
-    doc.setFontSize(9.5);
-    const passagemTexto = passagem && passagem.texto ? passagem.texto : '(sem registro)';
-    const passagemLines = doc.splitTextToSize(passagemTexto, 277);
-    doc.text(passagemLines, 10, y+6);
-    y += 6 + passagemLines.length*4.2 + 8;
-  }else{
-    doc.setFontSize(10.5);
-    doc.setFont(undefined,'normal');
-    doc.text('Relatório individual gerado em '+fmtDateTime(nowIso()), 10, y);
     y += 8;
   }
 
@@ -2066,6 +2153,7 @@ function bindEvents(){
     renderHistory('diaria');
   });
   document.getElementById('btnTvMode').addEventListener('click', enterTv);
+  document.querySelectorAll('.tv-mode-btn').forEach(b=>b.addEventListener('click', ()=>tvSetViewMode(b.dataset.mode)));
   document.getElementById('btnTvExit').addEventListener('click', exitTv);
   document.getElementById('btnTvNotaPrev').addEventListener('click', ()=>tvNotaMudarDia(-1));
   document.getElementById('btnTvNotaNext').addEventListener('click', ()=>tvNotaMudarDia(1));
@@ -2083,6 +2171,7 @@ window.PT = {
   novaTarefa: openNovaTarefaModal,
   openFechar: openFecharModal,
   tvSelectPerson: tvSelectPerson,
+  tvSelectCategoria: tvSelectCategoria,
   editarHistorico: openEditModal,
   removerPessoa: removerPessoa,
   atualizarAndamento: atualizarAndamento,
